@@ -53,7 +53,7 @@ ActiveRecord::Schema[7.2].define(version: 2026_05_10_151432) do
     t.uuid "accountable_id"
     t.decimal "balance", precision: 19, scale: 4
     t.string "currency"
-    t.virtual "classification", type: :string, as: "\nCASE\n    WHEN ((accountable_type)::text = ANY (ARRAY[('Loan'::character varying)::text, ('CreditCard'::character varying)::text, ('OtherLiability'::character varying)::text])) THEN 'liability'::text\n    ELSE 'asset'::text\nEND", stored: true
+    t.virtual "classification", type: :string, as: "\nCASE\n    WHEN ((accountable_type)::text = ANY ((ARRAY['Loan'::character varying, 'CreditCard'::character varying, 'OtherLiability'::character varying])::text[])) THEN 'liability'::text\n    ELSE 'asset'::text\nEND", stored: true
     t.uuid "import_id"
     t.uuid "plaid_account_id"
     t.decimal "cash_balance", precision: 19, scale: 4, default: "0.0"
@@ -63,8 +63,6 @@ ActiveRecord::Schema[7.2].define(version: 2026_05_10_151432) do
     t.string "institution_name"
     t.string "institution_domain"
     t.text "notes"
-    t.jsonb "holdings_snapshot_data"
-    t.datetime "holdings_snapshot_at"
     t.uuid "owner_id"
     t.index ["accountable_id", "accountable_type"], name: "index_accounts_on_accountable_id_and_accountable_type"
     t.index ["accountable_type"], name: "index_accounts_on_accountable_type"
@@ -592,8 +590,8 @@ ActiveRecord::Schema[7.2].define(version: 2026_05_10_151432) do
     t.datetime "latest_sync_completed_at", default: -> { "CURRENT_TIMESTAMP" }
     t.boolean "recurring_transactions_disabled", default: false, null: false
     t.integer "month_start_day", default: 1, null: false
-    t.string "vector_store_id"
     t.string "moniker", default: "Family", null: false
+    t.string "vector_store_id"
     t.string "assistant_type", default: "builtin", null: false
     t.string "default_account_sharing", default: "shared", null: false
     t.string "enabled_currencies", array: true
@@ -713,11 +711,11 @@ ActiveRecord::Schema[7.2].define(version: 2026_05_10_151432) do
     t.text "notes"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
-    t.string "exchange_operating_mic"
     t.string "category_parent"
     t.string "category_color"
     t.string "category_classification"
     t.string "category_icon"
+    t.string "exchange_operating_mic"
     t.string "resource_type"
     t.boolean "active"
     t.string "effective_date"
@@ -756,9 +754,9 @@ ActiveRecord::Schema[7.2].define(version: 2026_05_10_151432) do
     t.string "exchange_operating_mic_col_label"
     t.string "amount_type_strategy", default: "signed_amount"
     t.string "amount_type_inflow_value"
-    t.integer "rows_to_skip", default: 0, null: false
     t.integer "rows_count", default: 0, null: false
     t.string "amount_type_identifier_value"
+    t.integer "rows_to_skip", default: 0, null: false
     t.text "ai_summary"
     t.string "document_type"
     t.jsonb "extracted_data"
@@ -879,9 +877,11 @@ ActiveRecord::Schema[7.2].define(version: 2026_05_10_151432) do
     t.string "subtype"
     t.decimal "insurance_rate", precision: 8, scale: 4
     t.string "insurance_rate_type"
-    t.date "start_date"
+    t.date "start_date", null: false
     t.decimal "down_payment", precision: 15, scale: 2
     t.check_constraint "down_payment IS NULL OR down_payment >= 0::numeric", name: "chk_loans_down_payment_non_negative"
+    t.check_constraint "insurance_rate IS NULL OR insurance_rate >= 0::numeric", name: "chk_loans_insurance_rate_non_negative"
+    t.check_constraint "insurance_rate_type IS NULL OR (insurance_rate_type::text = ANY (ARRAY['level_term'::character varying, 'decreasing_life'::character varying]::text[]))", name: "chk_loans_insurance_rate_type"
   end
 
   create_table "lunchflow_accounts", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -1161,6 +1161,7 @@ ActiveRecord::Schema[7.2].define(version: 2026_05_10_151432) do
     t.index ["account_id"], name: "index_recurring_transactions_on_account_id"
     t.index ["family_id", "account_id", "merchant_id", "amount", "currency"], name: "idx_recurring_txns_acct_merchant", unique: true, where: "(merchant_id IS NOT NULL)"
     t.index ["family_id", "account_id", "name", "amount", "currency"], name: "idx_recurring_txns_acct_name", unique: true, where: "((name IS NOT NULL) AND (merchant_id IS NULL))"
+    t.index ["family_id", "merchant_id", "amount", "currency"], name: "idx_recurring_txns_on_family_merchant_amount_currency", unique: true
     t.index ["family_id", "status"], name: "index_recurring_transactions_on_family_id_and_status"
     t.index ["family_id"], name: "index_recurring_transactions_on_family_id"
     t.index ["merchant_id"], name: "index_recurring_transactions_on_merchant_id"
@@ -1340,7 +1341,6 @@ ActiveRecord::Schema[7.2].define(version: 2026_05_10_151432) do
   create_table "snaptrade_accounts", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
     t.uuid "snaptrade_item_id", null: false
     t.string "name"
-    t.string "account_id"
     t.string "snaptrade_account_id"
     t.string "snaptrade_authorization_id"
     t.string "account_number"
@@ -1358,11 +1358,10 @@ ActiveRecord::Schema[7.2].define(version: 2026_05_10_151432) do
     t.jsonb "raw_activities_payload", default: []
     t.datetime "last_holdings_sync"
     t.datetime "last_activities_sync"
+    t.boolean "activities_fetch_pending", default: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
-    t.boolean "activities_fetch_pending", default: false
     t.date "sync_start_date"
-    t.index ["account_id"], name: "index_snaptrade_accounts_on_account_id", unique: true
     t.index ["snaptrade_item_id", "snaptrade_account_id"], name: "index_snaptrade_accounts_on_item_and_snaptrade_account_id", unique: true, where: "(snaptrade_account_id IS NOT NULL)"
     t.index ["snaptrade_item_id"], name: "index_snaptrade_accounts_on_snaptrade_item_id"
   end
@@ -1545,16 +1544,9 @@ ActiveRecord::Schema[7.2].define(version: 2026_05_10_151432) do
     t.datetime "updated_at", null: false
     t.string "currency"
     t.jsonb "locked_attributes", default: {}
-    t.decimal "realized_gain", precision: 19, scale: 4
-    t.decimal "cost_basis_amount", precision: 19, scale: 4
-    t.string "cost_basis_currency"
-    t.integer "holding_period_days"
-    t.string "realized_gain_confidence"
-    t.string "realized_gain_currency"
     t.string "investment_activity_label"
     t.decimal "fee", precision: 19, scale: 4, default: "0.0", null: false
     t.index ["investment_activity_label"], name: "index_trades_on_investment_activity_label"
-    t.index ["realized_gain"], name: "index_trades_on_realized_gain_not_null", where: "(realized_gain IS NOT NULL)"
     t.index ["security_id"], name: "index_trades_on_security_id"
   end
 
@@ -1616,9 +1608,9 @@ ActiveRecord::Schema[7.2].define(version: 2026_05_10_151432) do
     t.datetime "set_onboarding_preferences_at"
     t.datetime "set_onboarding_goals_at"
     t.string "default_account_order", default: "name_asc"
+    t.string "ui_layout"
     t.jsonb "preferences", default: {}, null: false
     t.string "locale"
-    t.string "ui_layout"
     t.uuid "default_account_id"
     t.index ["default_account_id"], name: "index_users_on_default_account_id"
     t.index ["email"], name: "index_users_on_email", unique: true
