@@ -510,51 +510,62 @@ end
       end
     end
   end
-  # =========================
-  # elapsed_ratio
-  # =========================
+  # ── balance_paid_ratio ────────────────────────────────────────────────────
 
-  test "elapsed_ratio returns elapsed fraction of the term" do
-    loan = Loan.new(term_months: 120)
+  test "balance_paid_ratio returns nil when initial_balance is nil" do
+    loan = loans(:one)
+    loan.stubs(:initial_balance).returns(nil)
 
-    loan.stub :months_elapsed, 30 do
-      result = loan.elapsed_ratio
-
-      assert_in_delta 0.25, result, 0.0001
-    end
+    assert_nil loan.balance_paid_ratio
   end
 
-  test "elapsed_ratio is clamped to 1.0 when months_elapsed exceeds term" do
-    loan = Loan.new(term_months: 120)
+  test "balance_paid_ratio returns nil when initial_balance is zero" do
+    loan = loans(:one)
+    loan.stubs(:initial_balance).returns(0)
 
-    loan.stub :months_elapsed, 200 do
-      result = loan.elapsed_ratio
-
-      assert_equal 1.0, result
-    end
+    assert_nil loan.balance_paid_ratio
   end
 
-  test "elapsed_ratio is clamped to 0.0 when months_elapsed is negative" do
-    loan = Loan.new(term_months: 120)
+  test "balance_paid_ratio returns 0.0 when nothing has been repaid" do
+    loan = loans(:one)
+    loan.stubs(:initial_balance).returns(100_000)
+    loan.account.stubs(:balance).returns(100_000)
 
-    loan.stub :months_elapsed, -10 do
-      result = loan.elapsed_ratio
-
-      assert_equal 0.0, result
-    end
+    assert_equal 0.0, loan.balance_paid_ratio
   end
 
-  test "elapsed_ratio returns nil when term_months is nil" do
-    loan = Loan.new(term_months: nil)
+  test "balance_paid_ratio returns correct ratio when partially repaid" do
+    loan = loans(:one)
+    loan.stubs(:initial_balance).returns(100_000)
+    loan.account.stubs(:balance).returns(60_000)
 
-    assert_nil loan.elapsed_ratio
+    assert_equal 0.4, loan.balance_paid_ratio
   end
 
-  test "elapsed_ratio returns nil when term_months is zero" do
-    loan = Loan.new(term_months: 0)
+  test "balance_paid_ratio returns 1.0 when fully repaid" do
+    loan = loans(:one)
+    loan.stubs(:initial_balance).returns(100_000)
+    loan.account.stubs(:balance).returns(0)
 
-    assert_nil loan.elapsed_ratio
+    assert_equal 1.0, loan.balance_paid_ratio
   end
+
+  test "balance_paid_ratio clamps to 0.0 when balance exceeds initial" do
+    loan = loans(:one)
+    loan.stubs(:initial_balance).returns(100_000)
+    loan.account.stubs(:balance).returns(105_000)
+
+    assert_equal 0.0, loan.balance_paid_ratio
+  end
+
+  test "balance_paid_ratio returns nil when account balance is nil" do
+    loan = loans(:one)
+    loan.stubs(:initial_balance).returns(100_000)
+    loan.account.stubs(:balance).returns(nil)
+
+    assert_nil loan.balance_paid_ratio
+  end
+
   # =========================
   # initial_leverage_ratio
   # =========================

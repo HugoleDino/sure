@@ -9,8 +9,8 @@
     <% end %>
 
     <%= summary_card title: t("loans.overview.repayment_progress") do %>
-      <% if loan.elapsed_ratio.present? %>
-        <% percentage = (loan.elapsed_ratio * 100).round(1) %>
+      <% if loan.balance_paid_ratio.present? %>
+        <% percentage = (loan.balance_paid_ratio * 100).round(1) %>
         <div class="flex items-center justify-between gap-4">
           <div class="text-sm text-secondary">
             <%= t("loans.overview.already_paid_html",
@@ -37,7 +37,7 @@
                 stroke-linecap="round"
                 class="stroke-amber-500 fill-none transition-all duration-500"
                 stroke-dasharray="<%= 2 * Math::PI * 28 %>"
-                stroke-dashoffset="<%= 2 * Math::PI * 28 * (1 - loan.elapsed_ratio) %>"
+                stroke-dashoffset="<%= 2 * Math::PI * 28 * (1 - loan.balance_paid_ratio) %>"
               />
             </svg>
           </div>

@@ -170,11 +170,14 @@ class Loan < ApplicationRecord
     }
   end
 
-  def elapsed_ratio
-    term = term_months
-    return unless term&.positive?
+  def balance_paid_ratio
+    initial = initial_balance
+    return unless initial&.positive?
 
-    (months_elapsed.fdiv(term)).clamp(0.0, 1.0)
+    current = account.balance
+    return unless current
+
+    (1 - current.fdiv(initial)).clamp(0.0, 1.0)
   end
 
 
@@ -202,7 +205,7 @@ class Loan < ApplicationRecord
   private
 
     def original_balance_cache_key
-      account.valuations.first&.updated_at&.to_i
+      account&.valuations&.first&.updated_at&.to_i
     end
 
     def set_default_start_date
