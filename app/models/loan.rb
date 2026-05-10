@@ -96,7 +96,7 @@ class Loan < ApplicationRecord
 
   def amortization_schedule
     return [] unless term_months && interest_rate && start_date && rate_type == "fixed"
-    Rails.cache.fetch([ "loan_amortization", cache_key_with_version ]) do
+    Rails.cache.fetch([ "loan_amortization", cache_key_with_version, original_balance_cache_key ]) do
       generate_amortization_schedule
     end
   end
@@ -200,6 +200,11 @@ class Loan < ApplicationRecord
   end
 
   private
+
+    def original_balance_cache_key
+      account.valuations.first&.updated_at&.to_i
+    end
+
     def set_default_start_date
       self.start_date ||= Date.current
     end
@@ -208,7 +213,7 @@ class Loan < ApplicationRecord
       start = start_date
       return unless start && month_number&.positive?
       start + (month_number - 1).months
-  end
+    end
 
 
     def generate_amortization_schedule
