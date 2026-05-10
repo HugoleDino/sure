@@ -38,9 +38,8 @@ class Loan < ApplicationRecord
 
   validates :start_date, presence: true, on: :create
 
-  def set_default_start_date
-    self.start_date ||= Date.current
-  end
+
+
 
   def original_balance
     Money.new(account.first_valuation_amount, account.currency)
@@ -102,53 +101,7 @@ class Loan < ApplicationRecord
     end
   end
 
-  def payment_date_for(month_number)
-    start = start_date
-    return unless start && month_number&.positive?
-    start + (month_number - 1).months
-  end
 
-
-  def generate_amortization_schedule
-    return [] if interest_rate.nil? || term_months.nil? || start_date.nil?
-
-    balance          = BigDecimal(original_balance.amount.to_s)
-    initial_balance  = balance
-
-    rate             = BigDecimal(interest_rate.to_s) / 1200
-    insurance_rate_m = BigDecimal((insurance_rate || 0).to_s) / 1200
-
-    return [] unless (monthly = monthly_payment)
-    payment = BigDecimal(monthly.amount.to_s)
-
-    schedule = []
-    months   = term_months
-    date     = start_date
-
-    months.times do |i|
-      interest = (balance * rate).round(0)
-
-      insurance_base =
-        insurance_rate_type == "level_term" ? initial_balance : nil
-      base = insurance_base || balance
-      insurance_amount = (base * insurance_rate_m).round(0)
-
-      principal = payment - interest
-      balance   = [ balance - principal, 0 ].max
-
-      schedule << {
-        month: i + 1,
-        date: start_date >> i,
-        payment: payment.to_i,
-        interest: interest.to_i,
-        principal: principal.to_i,
-        insurance: insurance_amount.to_i,
-        remaining_balance: balance.round(0).to_i
-      }
-    end
-
-    schedule
-  end
 
   def total_insurance
     Money.new(amortization_schedule.sum { _1[:insurance] }, account.currency)
@@ -245,4 +198,57 @@ class Loan < ApplicationRecord
       "liability"
     end
   end
+
+  private
+    def set_default_start_date
+      self.start_date ||= Date.current
+    end
+
+    def payment_date_for(month_number)
+      start = start_date
+      return unless start && month_number&.positive?
+      start + (month_number - 1).months
+  end
+
+
+    def generate_amortization_schedule
+      return [] if interest_rate.nil? || term_months.nil? || start_date.nil?
+
+      balance          = BigDecimal(original_balance.amount.to_s)
+      initial_balance  = balance
+
+      rate             = BigDecimal(interest_rate.to_s) / 1200
+      insurance_rate_m = BigDecimal((insurance_rate || 0).to_s) / 1200
+
+      return [] unless (monthly = monthly_payment)
+      payment = BigDecimal(monthly.amount.to_s)
+
+      schedule = []
+      months   = term_months
+      date     = start_date
+
+      months.times do |i|
+        interest = (balance * rate).round(0)
+
+        insurance_base =
+          insurance_rate_type == "level_term" ? initial_balance : nil
+        base = insurance_base || balance
+        insurance_amount = (base * insurance_rate_m).round(0)
+
+        principal = payment - interest
+        balance   = [ balance - principal, 0 ].max
+
+        schedule << {
+          month: i + 1,
+          date: start_date >> i,
+          payment: payment.to_i,
+          interest: interest.to_i,
+          principal: principal.to_i,
+          insurance: insurance_amount.to_i,
+          remaining_balance: balance.round(0).to_i
+        }
+      end
+
+      schedule
+    end
 end

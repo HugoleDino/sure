@@ -173,29 +173,31 @@ class LoanTest < ActiveSupport::TestCase
   test "payment_date_for returns the correct payment date" do
     loan = Loan.new(start_date: Date.new(2024, 1, 15))
 
-    assert_equal Date.new(2024, 1, 15), loan.payment_date_for(1)
-    assert_equal Date.new(2024, 2, 15), loan.payment_date_for(2)
-    assert_equal Date.new(2024, 3, 15), loan.payment_date_for(3)
+    assert_equal Date.new(2024, 1, 15), loan.send(:payment_date_for, 1)
+    assert_equal Date.new(2024, 2, 15), loan.send(:payment_date_for, 2)
+    assert_equal Date.new(2024, 3, 15), loan.send(:payment_date_for, 3)
   end
   test "payment_date_for returns nil when start_date is missing" do
     loan = Loan.new(start_date: nil)
 
-    assert_nil loan.payment_date_for(1)
+    assert_nil loan.send(:payment_date_for, 1)
   end
 
   test "payment_date_for returns nil when month_number is invalid" do
     loan = Loan.new(start_date: Date.new(2024, 1, 1))
 
-    assert_nil loan.payment_date_for(nil)
-    assert_nil loan.payment_date_for(0)
-    assert_nil loan.payment_date_for(-1)
+    assert_nil loan.send(:payment_date_for, nil)
+    assert_nil loan.send(:payment_date_for, 0)
+    assert_nil loan.send(:payment_date_for, -1)
   end
+
   test "payment_date_for handles end-of-month correctly" do
     loan = Loan.new(start_date: Date.new(2024, 1, 31))
 
-    assert_equal Date.new(2024, 2, 29), loan.payment_date_for(2) # leap year
-    assert_equal Date.new(2024, 3, 31), loan.payment_date_for(3)
+    assert_equal Date.new(2024, 2, 29), loan.send(:payment_date_for, 2)
+    assert_equal Date.new(2024, 3, 31), loan.send(:payment_date_for, 3)
   end
+
 
   # =========================
   # generate_amortization_schedule
@@ -208,8 +210,9 @@ class LoanTest < ActiveSupport::TestCase
       insurance_rate: 0.3
     )
 
-    assert_equal [], loan.generate_amortization_schedule
+    assert_equal [], loan.send(:generate_amortization_schedule)
   end
+
 
   test "generate_amortization_schedule builds schedule with correct structure" do
     loan = Loan.new(
@@ -222,7 +225,7 @@ class LoanTest < ActiveSupport::TestCase
 
     loan.stub :original_balance, OpenStruct.new(amount: 100_000) do
       loan.stub :monthly_payment, OpenStruct.new(amount: 10_000) do
-        schedule = loan.generate_amortization_schedule
+        schedule = loan.send(:generate_amortization_schedule)
 
         assert_equal 2, schedule.length
 
@@ -239,6 +242,7 @@ class LoanTest < ActiveSupport::TestCase
     end
   end
 
+
   test "generate_amortization_schedule decreases balance over time" do
     loan = Loan.new(
       interest_rate: 3.6,
@@ -250,7 +254,7 @@ class LoanTest < ActiveSupport::TestCase
 
     loan.stub :original_balance, OpenStruct.new(amount: 100_000) do
       loan.stub :monthly_payment, OpenStruct.new(amount: 10_000) do
-        schedule = loan.generate_amortization_schedule
+        schedule = loan.send(:generate_amortization_schedule)
 
         balances = schedule.map { |r| r[:remaining_balance] }
 
@@ -260,26 +264,27 @@ class LoanTest < ActiveSupport::TestCase
     end
   end
 
+
   test "generate_amortization_schedule keeps insurance constant for level_term" do
-    loan = Loan.new(
-      interest_rate: 3.6,
-      insurance_rate: 0.3,
-      insurance_rate_type: "level_term",
-      term_months: 3,
-      start_date: Date.new(2024, 1, 1)
-    )
+  loan = Loan.new(
+    interest_rate: 3.6,
+    insurance_rate: 0.3,
+    insurance_rate_type: "level_term",
+    term_months: 3,
+    start_date: Date.new(2024, 1, 1)
+  )
 
-    loan.stub :original_balance, OpenStruct.new(amount: 100_000) do
-      loan.stub :monthly_payment, OpenStruct.new(amount: 10_000) do
-        schedule = loan.generate_amortization_schedule
+  loan.stub :original_balance, OpenStruct.new(amount: 100_000) do
+    loan.stub :monthly_payment, OpenStruct.new(amount: 10_000) do
+      schedule = loan.send(:generate_amortization_schedule)  # ← send
 
-        insurances = schedule.map { |r| r[:insurance] }
+      insurances = schedule.map { |r| r[:insurance] }
 
-        assert_equal insurances.first, insurances.second
-        assert_equal insurances.first, insurances.third
-      end
+      assert_equal insurances.first, insurances.second
+      assert_equal insurances.first, insurances.third
     end
   end
+end
   # =========================
   # total_insurance
   # =========================
