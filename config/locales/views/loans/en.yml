@@ -50,7 +50,7 @@ en:
         variable: Variable
         adjustable: Adjustable
       unknown: Unknown
-      already_paid_html: "You have already refunded <span class=\"font-medium text-amber-500\">%{percentage}</span> of your loan"
+      already_paid_html: "You have already repaid <span class=\"font-medium text-amber-500\">%{percentage}</span> of your loan"
       initial_leverage: Initial Leverage
       debt_over_down_payment: Debt / down payment
       total_cost: Total Cost
