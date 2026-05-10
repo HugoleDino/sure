@@ -60,8 +60,8 @@ en:
       payments_made: Payments made
       remaining_payments: Remaining payments
       years:
-          one: "%{count} year"
-          other: "%{count} years"
+        one: "%{count} year"
+        other: "%{count} years"
       months:
         one: "%{count} month"
         other: "%{count} months"
